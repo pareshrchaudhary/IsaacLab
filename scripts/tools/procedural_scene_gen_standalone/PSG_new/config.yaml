@@ -1,0 +1,103 @@
+scene:
+  Floor:
+    parents: []
+    instances: 1
+    size: [30, 30, 1]
+    rotation: [0, 0, 0]
+    general_clearance: 0
+    placement: [""]
+  Table:
+    parents: ["Floor"]
+    instances: 3
+    size: [6, 6, 3]
+    rotation: [0, 0, 0]
+    general_clearance: 0
+    specific_clearance:
+      Bench: 2
+    placement: ["Top"]
+  Chair:
+    parents: ["Table"]
+    instances: 5
+    size: [2, 2, 2]
+    rotation: [0, 0, 0]
+    general_clearance: 1
+    placement: ["Short", "Long", "Tuck", "Top"]
+    strict_orientation: true
+  Cube:
+    parents: ["Table"]
+    instances: 5
+    size: [0.5, 0.5, 0.5]
+    rotation: [0, 0, 0]
+    general_clearance: 0
+    placement: ["Top", "Under"]
+    strict_orientation: true
+  Box:
+    parents: ["Floor"]
+    instances: 10
+    size: [0.5, 0.5, 0.5]
+    rotation: [0, 0, 0]
+    general_clearance: 0
+    placement: ["Top"]
+  Bench:
+    parents: ["Floor"]
+    instances: 0
+    size: [6, 3, 3]
+    rotation: [0, 0, 0]
+    general_clearance: 0
+    specific_clearance:
+      Table: 2
+    placement: ["Top"]
+
+#*******************************************************#
+
+generation:
+  num_scenes: 1024
+  subtraversal:
+    selective: true
+    forced: true
+    objects: ["Chair", "Cube"]
+    depth: 1
+
+#*******************************************************#
+
+output:
+  run_name: "run_1"
+  save_dir: "scenes"
+  asset_dir: "Assets"
+  log_timing_file: "time_log.csv"
+  save:
+    positional_info: true
+    usd: true
+    parent_child_graph: true
+    log_timing: true
+
+#*******************************************************#
+
+textures:
+  enabled: true
+  materials:
+    Wood:
+      - "Materials/Base/Wood/Bamboo_Planks/Bamboo_Planks_BaseColor.png"
+      - "Materials/Base/Wood/Cherry/Cherry_BaseColor.png"
+      - "Materials/Base/Wood/Oak/Oak_BaseColor.png"
+      - "Materials/Base/Wood/Timber/Timber_BaseColor.png"
+      - "Materials/Base/Wood/Timber_Cladding/Timber_Cladding_BaseColor.png"
+      - "Materials/Base/Wood/Walnut_Planks/Walnut_Planks_BaseColor.png"
+    Blank:
+      - "Materials/Base/Metal/Blank.png"
+  object_materials:
+    Floor: "Wood"
+    Table: "Wood"
+    Chair: "Blank"
+    Box: "Wood"
+    Cube: "Blank"
+    Bench: "Wood"
+  material_properties:
+    Wood:
+      roughness: 0.7
+      metallic: 0.0
+      opacity: 1.0
+    Blank:
+      roughness: 0.2
+      metallic: 0.8
+      opacity: 1.0

@@ -1,0 +1,104 @@
+scene:
+  Floor:
+    parents: []
+    instances: 1
+    size: [100, 100, 1]
+    rotation: [0, 0, 0]
+    clearance: 0
+    placement: [""]
+  Table:
+    parents: ["Floor"]
+    instances: 40
+    size: [8, 8, 3]
+    rotation: [0, 0, 0]
+    clearance: 1
+    placement: [""]
+  Chair:
+    parents: ["Table"]
+    instances: 200
+    size: [2, 2, 3]
+    rotation: [0, 0, 0]
+    clearance: 0
+    placement: ["Tuck", "Short"]
+    strict_orientation: true
+  Cube:
+    parents: ["Table"]
+    instances: 100
+    size: [0.5, 0.5, 0.5]
+    rotation: [0, 0, 0]
+    clearance: 0
+    placement: ["Top", "Under"]
+  Box:
+    parents: ["Floor"]
+    instances: 100
+    size: [0.5, 0.5, 0.5]
+    rotation: [0, 0, 0]
+    clearance: 0
+    placement: [""]
+  Bench:
+    parents: ["Floor"]
+    instances: 20
+    size: [6, 2, 3]
+    rotation: [0, 0, 0]
+    clearance: 3
+    placement: [""]
+
+#*******************************************************#
+
+generation:
+  num_scenes: 1024
+  subtraversal:
+    selective: true
+    forced: true
+    objects: ["Chair", "Cube"]
+    height: 1
+
+#*******************************************************#
+
+output:
+  run_name: "run_1"
+  save_dir: "scenes"
+  asset_dir: "Assets"
+  save:
+    positional_info: true
+    usd: true
+    parent_child_graph: true
+
+#*******************************************************#
+
+debug:
+  log_timing: true
+  log_timing_file: "time_log.csv"
+  log_debug: false
+  log_debug_file: "debug.txt"
+
+#*******************************************************#
+
+textures:
+  enabled: true
+  materials:
+    Wood:
+      - "Materials/Base/Wood/Bamboo_Planks/Bamboo_Planks_BaseColor.png"
+      - "Materials/Base/Wood/Cherry/Cherry_BaseColor.png"
+      - "Materials/Base/Wood/Oak/Oak_BaseColor.png"
+      - "Materials/Base/Wood/Timber/Timber_BaseColor.png"
+      - "Materials/Base/Wood/Timber_Cladding/Timber_Cladding_BaseColor.png"
+      - "Materials/Base/Wood/Walnut_Planks/Walnut_Planks_BaseColor.png"
+    Blank:
+      - "Materials/Base/Metal/Blank.png"
+  object_materials:
+    Floor: "Wood"
+    Table: "Wood"
+    Chair: "Blank"
+    Box: "Wood"
+    Cube: "Blank"
+    Bench: "Wood"
+  material_properties:
+    Wood:
+      roughness: 0.7
+      metallic: 0.0
+      opacity: 1.0
+    Blank:
+      roughness: 0.2
+      metallic: 0.8
+      opacity: 1.0
