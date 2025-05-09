@@ -22,6 +22,20 @@ export ISAACLAB_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && p
 # Helper functions
 #==
 
+# check if cmake is installed
+check_cmake() {
+    if ! command -v cmake &> /dev/null; then
+        echo "[INFO] CMake not found. Installing CMake..."
+        if command -v apt-get &> /dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y cmake
+        else
+            echo "[ERROR] Could not install CMake. Please install it manually."
+            exit 1
+        fi
+    fi
+}
+
 # check if running in docker
 is_docker() {
     [ -f /.dockerenv ] || \
@@ -136,6 +150,18 @@ setup_conda_env() {
         exit 1
     fi
 
+    # check if we have _isaac_sim directory -> if so that means binaries were installed.
+    # we need to setup conda variables to load the binaries
+    local isaacsim_setup_conda_env_script=${ISAACLAB_PATH}/_isaac_sim/setup_conda_env.sh
+
+    if [ ! -f "${isaacsim_setup_conda_env_script}" ]; then
+        echo -e "[WARNING] Isaac Sim setup script not found at: ${isaacsim_setup_conda_env_script}" >&2
+        echo -e "\tThis could be due to the following reasons:" >&2
+        echo -e "\t1. Isaac Sim is not symlinked to the default location: ${ISAACLAB_PATH}/_isaac_sim" >&2
+        echo -e "\t2. Isaac Sim binaries are not properly installed." >&2
+        echo -e "\tYou can still proceed with the conda environment creation and install Isaac Sim via pip." >&2
+    fi
+
     # check if the environment exists
     if { conda env list | grep -w ${env_name}; } >/dev/null 2>&1; then
         echo -e "[INFO] Conda environment named '${env_name}' already exists."
@@ -171,9 +197,6 @@ setup_conda_env() {
         '' > ${CONDA_PREFIX}/etc/conda/activate.d/setenv.sh
 
     # check if we have _isaac_sim directory -> if so that means binaries were installed.
-    # we need to setup conda variables to load the binaries
-    local isaacsim_setup_conda_env_script=${ISAACLAB_PATH}/_isaac_sim/setup_conda_env.sh
-
     if [ -f "${isaacsim_setup_conda_env_script}" ]; then
         # add variables to environment during activation
         printf '%s\n' \
@@ -273,6 +296,9 @@ while [[ $# -gt 0 ]]; do
     # read the key
     case "$1" in
         -i|--install)
+            # check and install cmake if needed
+            check_cmake
+
             # install the python packages in IsaacLab/source directory
             echo "[INFO] Installing extensions inside the Isaac Lab repository..."
             python_exe=$(extract_python_exe)

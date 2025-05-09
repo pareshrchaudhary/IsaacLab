@@ -114,6 +114,17 @@ if errorlevel 1 (
     echo [ERROR] Conda could not be found. Please install conda and try again.
     exit /b 1
 )
+
+rem obtain isaacsim path
+call :extract_isaacsim_path
+if not exist "%isaac_path%" (
+    echo [WARNING] Isaac Sim setup script not found at: %isaac_path%
+    echo %tab%This could be due to the following reasons:
+    echo %tab%1. Isaac Sim is not symlinked to the default location: %ISAACLAB_PATH%\_isaac_sim
+    echo %tab%2. Isaac Sim binaries are not properly installed.
+    echo %tab%You can still proceed with the conda environment creation and install Isaac Sim via pip.
+)
+
 rem check if the environment exists
 call conda env list | findstr /c:"%env_name%" >nul
 if %errorlevel% equ 0 (
