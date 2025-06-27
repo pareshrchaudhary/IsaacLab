@@ -434,7 +434,8 @@ def randomize_rigid_body_collider_offsets(
             operation="abs",
             distribution=distribution,
         )
-        asset.root_physx_view.set_rest_offsets(rest_offset, env_ids.cpu())
+        if contact_offset_distribution_params is None:
+            asset.root_physx_view.set_rest_offsets(rest_offset, env_ids.cpu())
     # -- contact offsets
     if contact_offset_distribution_params is not None:
         contact_offset = asset.root_physx_view.get_contact_offsets().clone()
@@ -446,7 +447,14 @@ def randomize_rigid_body_collider_offsets(
             operation="abs",
             distribution=distribution,
         )
+        # ensure the contact offsets are greater then the rest offsets
+        if rest_offset_distribution_params is not None:
+            rest_offset = asset.root_physx_view.get_rest_offsets().clone()
+            contact_offset = torch.max(contact_offset, rest_offset + 0.001)
+
         asset.root_physx_view.set_contact_offsets(contact_offset, env_ids.cpu())
+        if rest_offset_distribution_params is not None:
+            asset.root_physx_view.set_rest_offsets(rest_offset, env_ids.cpu())
 
 
 def randomize_physics_scene_gravity(
@@ -615,7 +623,7 @@ def randomize_joint_parameters(
             distribution=distribution,
         )
         asset.write_joint_friction_coefficient_to_sim(
-            friction_coeff[env_ids[:, None], joint_ids], joint_ids=joint_ids, env_ids=env_ids
+            friction_coeff[env_ids, joint_ids], joint_ids=joint_ids, env_ids=env_ids
         )
 
     # joint armature
@@ -628,7 +636,7 @@ def randomize_joint_parameters(
             operation=operation,
             distribution=distribution,
         )
-        asset.write_joint_armature_to_sim(armature[env_ids[:, None], joint_ids], joint_ids=joint_ids, env_ids=env_ids)
+        asset.write_joint_armature_to_sim(armature[env_ids, joint_ids], joint_ids=joint_ids, env_ids=env_ids)
 
     # joint position limits
     if lower_limit_distribution_params is not None or upper_limit_distribution_params is not None:
@@ -655,7 +663,7 @@ def randomize_joint_parameters(
             )
 
         # extract the position limits for the concerned joints
-        joint_pos_limits = joint_pos_limits[env_ids[:, None], joint_ids]
+        joint_pos_limits = joint_pos_limits[env_ids, joint_ids]
         if (joint_pos_limits[..., 0] > joint_pos_limits[..., 1]).any():
             raise ValueError(
                 "Randomization term 'randomize_joint_parameters' is setting lower joint limits that are greater than"

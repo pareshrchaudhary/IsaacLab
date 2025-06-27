@@ -13,9 +13,11 @@ import torch
 from collections.abc import Sequence
 from prettytable import PrettyTable
 from typing import TYPE_CHECKING
+from tensordict.tensordict import TensorDict
 
 from isaaclab.utils import class_to_dict, modifiers
 from isaaclab.utils.buffers import CircularBuffer
+
 
 from .manager_base import ManagerBase, ManagerTermBase
 from .manager_term_cfg import ObservationGroupCfg, ObservationTermCfg
@@ -343,7 +345,7 @@ class ObservationManager(ManagerBase):
             # set the concatenate dimension, account for the batch dimension if positive dimension is given
             return torch.cat(list(group_obs.values()), dim=self._group_obs_concatenate_dim[group_name])
         else:
-            return group_obs
+            return TensorDict(group_obs, batch_size=self._env.num_envs)
 
     def serialize(self) -> dict:
         """Serialize the observation term configurations for all active groups.

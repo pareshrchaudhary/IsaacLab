@@ -185,6 +185,9 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             self.action_manager.apply_action()
             # set actions into simulator
             self.scene.write_data_to_sim()
+            # apply any events to overwrite any applied actions
+            if "pre_sim_step" in self.event_manager.available_modes:
+                self.event_manager.apply(mode="pre_sim_step", dt=self.step_dt)
             # simulate
             self.sim.step(render=False)
             # render between steps only if the GUI or an RTX sensor needs it
@@ -332,10 +335,12 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
             if has_concatenated_obs:
                 self.single_observation_space[group_name] = gym.spaces.Box(low=-np.inf, high=np.inf, shape=group_dim)
             else:
-                self.single_observation_space[group_name] = gym.spaces.Dict({
-                    term_name: gym.spaces.Box(low=-np.inf, high=np.inf, shape=term_dim)
-                    for term_name, term_dim in zip(group_term_names, group_dim)
-                })
+                self.single_observation_space[group_name] = gym.spaces.Dict(
+                    {
+                        term_name: gym.spaces.Box(low=-np.inf, high=np.inf, shape=term_dim)
+                        for term_name, term_dim in zip(group_term_names, group_dim)
+                    }
+                )
         # action space (unbounded since we don't impose any limits)
         action_dim = sum(self.action_manager.action_term_dim)
         self.single_action_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(action_dim,))
