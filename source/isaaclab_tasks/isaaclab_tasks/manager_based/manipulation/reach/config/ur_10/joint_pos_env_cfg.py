@@ -13,7 +13,7 @@ from isaaclab_tasks.manager_based.manipulation.reach.reach_env_cfg import ReachE
 ##
 # Pre-defined configs
 ##
-from isaaclab_assets import UR10_CFG  # isort: skip
+from isaaclab_assets import UR10_CFG, ROUGH_UR10_CFG  # isort: skip
 
 
 ##
@@ -28,7 +28,7 @@ class UR10ReachEnvCfg(ReachEnvCfg):
         super().__post_init__()
 
         # switch robot to ur10
-        self.scene.robot = UR10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.robot = ROUGH_UR10_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
         # override events
         self.events.reset_robot_joints.params["position_range"] = (0.75, 1.25)
         # override rewards

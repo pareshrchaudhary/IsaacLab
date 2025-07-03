@@ -15,7 +15,7 @@ Reference: https://github.com/ros-industrial/universal_robot
 import isaaclab.sim as sim_utils
 from isaaclab.actuators import ImplicitActuatorCfg
 from isaaclab.assets.articulation import ArticulationCfg
-from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
+from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR, ISAAC_NUCLEUS_DIR
 
 ##
 # Configuration
@@ -24,7 +24,7 @@ from isaaclab.utils.assets import ISAACLAB_NUCLEUS_DIR
 
 UR10_CFG = ArticulationCfg(
     spawn=sim_utils.UsdFileCfg(
-        usd_path=f"{ISAACLAB_NUCLEUS_DIR}/Robots/UniversalRobots/UR10/ur10_instanceable.usd",
+        usd_path="https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/5.0/Isaac/Robots/UniversalRobots/ur10/ur10.usd",
         rigid_props=sim_utils.RigidBodyPropertiesCfg(
             disable_gravity=False,
             max_depenetration_velocity=5.0,
@@ -52,3 +52,34 @@ UR10_CFG = ArticulationCfg(
     },
 )
 """Configuration of UR-10 arm using implicit actuator models."""
+
+ROUGH_UR10_CFG = ArticulationCfg(
+    spawn=sim_utils.UsdFileCfg(
+        usd_path="https://omniverse-content-staging.s3-us-west-2.amazonaws.com/Assets/Isaac/5.0/Isaac/Robots/UniversalRobots/ur10/Legacy/ur10.usd",
+        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+            disable_gravity=False,
+            max_depenetration_velocity=5.0,
+        ),
+        activate_contact_sensors=False,
+    ),
+    init_state=ArticulationCfg.InitialStateCfg(
+        joint_pos={
+            "shoulder_pan_joint": 0.0,
+            "shoulder_lift_joint": -1.712,
+            "elbow_joint": 1.712,
+            "wrist_1_joint": 0.0,
+            "wrist_2_joint": 0.0,
+            "wrist_3_joint": 0.0,
+        },
+    ),
+    actuators={
+        "arm": ImplicitActuatorCfg(
+            joint_names_expr=[".*"],
+            velocity_limit=100.0,
+            effort_limit=87.0,
+            stiffness=800.0,
+            damping=40.0,
+        ),
+    },
+)
+"""Configuration of UR-10 arm without instanceable components for experimentation purposes"""
