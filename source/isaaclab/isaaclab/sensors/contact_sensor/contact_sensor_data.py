@@ -42,6 +42,21 @@ class ContactSensorData:
         with the total contact forces acting on the sensor bodies (which also includes the tangential forces).
     """
 
+    velocities_w: torch.Tensor | None = None
+    """The velocities of the sensor bodies in world frame.
+
+    Shape is (N, B, 3), where N is the number of sensors and B is the number of bodies in each sensor.
+    """
+
+    velocities_w_history: torch.Tensor | None = None
+    """The velocities of the sensor bodies in world frame.
+
+    Shape is (N, T, B, 3), where N is the number of sensors, T is the configured history length
+    and B is the number of bodies in each sensor.
+
+    In the history dimension, the first index is the most recent and the last index is the oldest.
+    """
+
     net_forces_w_history: torch.Tensor | None = None
     """The net normal contact forces in world frame.
 

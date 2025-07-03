@@ -148,9 +148,11 @@ class ContactSensor(SensorBase):
             env_ids = slice(None)
         # reset accumulative data buffers
         self._data.net_forces_w[env_ids] = 0.0
+        self._data.velocities_w[env_ids] = 0.0
         self._data.net_forces_w_history[env_ids] = 0.0
         if self.cfg.history_length > 0:
             self._data.net_forces_w_history[env_ids] = 0.0
+            self._data.velocities_w_history[env_ids] = 0.0
         # reset force matrix
         if len(self.cfg.filter_prim_paths_expr) != 0:
             self._data.force_matrix_w[env_ids] = 0.0
@@ -292,14 +294,19 @@ class ContactSensor(SensorBase):
 
         # prepare data buffers
         self._data.net_forces_w = torch.zeros(self._num_envs, self._num_bodies, 3, device=self._device)
+        self._data.velocities_w = torch.zeros(self._num_envs, self._num_bodies, 3, device=self._device)
         # optional buffers
         # -- history of net forces
         if self.cfg.history_length > 0:
             self._data.net_forces_w_history = torch.zeros(
                 self._num_envs, self.cfg.history_length, self._num_bodies, 3, device=self._device
             )
+            self._data.velocities_w_history = torch.zeros(
+                self._num_envs, self.cfg.history_length, self._num_bodies, 3, device=self._device
+            )
         else:
             self._data.net_forces_w_history = self._data.net_forces_w.unsqueeze(1)
+            self._data.velocities_w_history = self._data.velocities_w.unsqueeze(1)
         # -- pose of sensor origins
         if self.cfg.track_pose:
             self._data.pos_w = torch.zeros(self._num_envs, self._num_bodies, 3, device=self._device)
@@ -329,9 +336,15 @@ class ContactSensor(SensorBase):
         net_forces_w = self.contact_physx_view.get_net_contact_forces(dt=self._sim_physics_dt)
         self._data.net_forces_w[env_ids, :, :] = net_forces_w.view(-1, self._num_bodies, 3)[env_ids]
         # update contact force history
+        velocities_w = self.body_physx_view.get_velocities()[
+            :, :3
+        ]  # TODO(rcathomen): might not be the most efficient way to do this
+        self._data.velocities_w[env_ids, :, :] = velocities_w.view(-1, self._num_bodies, 3)[env_ids]
         if self.cfg.history_length > 0:
             self._data.net_forces_w_history[env_ids, 1:] = self._data.net_forces_w_history[env_ids, :-1].clone()
             self._data.net_forces_w_history[env_ids, 0] = self._data.net_forces_w[env_ids]
+            self._data.velocities_w_history[env_ids, 1:] = self._data.velocities_w_history[env_ids, :-1].clone()
+            self._data.velocities_w_history[env_ids, 0] = self._data.velocities_w[env_ids]
 
         # obtain the contact force matrix
         if len(self.cfg.filter_prim_paths_expr) != 0:
