@@ -345,7 +345,7 @@ class ObservationManager(ManagerBase):
             # set the concatenate dimension, account for the batch dimension if positive dimension is given
             return torch.cat(list(group_obs.values()), dim=self._group_obs_concatenate_dim[group_name])
         else:
-            return TensorDict(group_obs, batch_size=self._env.num_envs)
+            return TensorDict(group_obs, batch_size=self._env.num_envs, device=self.device)
 
     def serialize(self) -> dict:
         """Serialize the observation term configurations for all active groups.

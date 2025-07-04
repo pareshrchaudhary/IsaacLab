@@ -69,6 +69,7 @@ class EventManager(ManagerBase):
         self._mode_term_names: dict[str, list[str]] = dict()
         self._mode_term_cfgs: dict[str, list[EventTermCfg]] = dict()
         self._mode_class_term_cfgs: dict[str, list[EventTermCfg]] = dict()
+        self._event_data: dict[str, torch.Tensor] = dict()
 
         # call the base class (this will parse the terms config)
         super().__init__(cfg, env)
@@ -115,6 +116,11 @@ class EventManager(ManagerBase):
     def available_modes(self) -> list[str]:
         """Modes of events."""
         return list(self._mode_term_names.keys())
+
+    @property
+    def event_data(self) -> dict[str, torch.Tensor]:
+        """Event data."""
+        return self._event_data
 
     """
     Operations.
@@ -200,6 +206,7 @@ class EventManager(ManagerBase):
         if mode == "reset" and global_env_step_count is None:
             raise ValueError(f"Event mode '{mode}' requires the total number of environment steps to be provided.")
 
+        event_data = None
         # iterate over all the event terms
         for index, term_cfg in enumerate(self._mode_term_cfgs[mode]):
             if mode == "interval":
@@ -207,6 +214,10 @@ class EventManager(ManagerBase):
                 time_left = self._interval_term_time_left[index]
                 # update the time left for each environment
                 time_left -= dt
+
+                # zero the event data
+                if term_cfg.store_data and term_cfg.zero_data:
+                    self._event_data[self._mode_term_names[mode][index]].zero_()
 
                 # check if the interval has passed and sample a new interval
                 # note: we compare with a small value to handle floating point errors
@@ -217,7 +228,10 @@ class EventManager(ManagerBase):
                         self._interval_term_time_left[index][:] = sampled_interval
 
                         # call the event term (with None for env_ids)
-                        term_cfg.func(self._env, None, **term_cfg.params)
+                        event_data = term_cfg.func(self._env, None, **term_cfg.params)
+                        # store the event data if the term is configured to do so
+                        if term_cfg.store_data:
+                            self._event_data[self._mode_term_names[mode][index]] = event_data
                 else:
                     valid_env_ids = (time_left < 1e-6).nonzero().flatten()
                     if len(valid_env_ids) > 0:
@@ -226,7 +240,10 @@ class EventManager(ManagerBase):
                         self._interval_term_time_left[index][valid_env_ids] = sampled_time
 
                         # call the event term
-                        term_cfg.func(self._env, valid_env_ids, **term_cfg.params)
+                        event_data = term_cfg.func(self._env, valid_env_ids, **term_cfg.params)
+                        # store the event data if the term is configured to do so
+                        if term_cfg.store_data:
+                            self._event_data[self._mode_term_names[mode][index]][valid_env_ids] = event_data
             elif mode == "reset":
                 # obtain the minimum step count between resets
                 min_step_count = term_cfg.min_step_count_between_reset
@@ -241,7 +258,10 @@ class EventManager(ManagerBase):
                     self._reset_term_last_triggered_once[index][env_ids] = True
 
                     # call the event term with the environment indices
-                    term_cfg.func(self._env, env_ids, **term_cfg.params)
+                    event_data = term_cfg.func(self._env, env_ids, **term_cfg.params)
+                    # store the event data if the term is configured to do so
+                    if term_cfg.store_data:
+                        self._event_data[self._mode_term_names[mode][index]][env_ids] = event_data
                 else:
                     # extract last reset step for this term
                     last_triggered_step = self._reset_term_last_triggered_step_id[index][env_ids]
@@ -267,10 +287,13 @@ class EventManager(ManagerBase):
                         self._reset_term_last_triggered_step_id[index][valid_env_ids] = global_env_step_count
 
                         # call the event term
-                        term_cfg.func(self._env, valid_env_ids, **term_cfg.params)
+                        event_data = term_cfg.func(self._env, valid_env_ids, **term_cfg.params)
+                        # store the event data if the term is configured to do so
+                        if term_cfg.store_data:
+                            self._event_data[self._mode_term_names[mode][index]][valid_env_ids] = event_data
             else:
                 # call the event term
-                term_cfg.func(self._env, env_ids, **term_cfg.params)
+                event_data = term_cfg.func(self._env, env_ids, **term_cfg.params)
 
     """
     Operations - Term settings.
@@ -321,6 +344,25 @@ class EventManager(ManagerBase):
     """
     Helper functions.
     """
+
+    def prepare_event_data(self):
+        """Prepares the event data for the specified term."""
+
+        if isinstance(self.cfg, dict):
+            cfg_items = self.cfg.items()
+        else:
+            cfg_items = self.cfg.__dict__.items()
+
+        # # check if the term is storing data
+        for term_name, term_cfg in cfg_items:
+            if term_cfg.store_data:
+                self._event_data[term_name] = term_cfg.func(self._env, None, **term_cfg.params).to(self.device)
+                assert self._event_data[term_name].shape[0] == self.num_envs, (
+                    f"Event data for term '{term_name}' has shape {self._event_data[term_name]} but"
+                    f" first dimension expected to be {self.num_envs}."
+                )
+                if term_cfg.mode == "interval" and term_cfg.zero_data:
+                    self._event_data[term_name].zero_()
 
     def _prepare_terms(self):
         # buffer to store the time left for "interval" mode

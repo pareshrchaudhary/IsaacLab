@@ -115,6 +115,9 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         self.command_manager: CommandManager = CommandManager(self.cfg.commands, self)
         print("[INFO] Command Manager: ", self.command_manager)
 
+        # fill the event data and apply all events
+        self.event_manager.prepare_event_data()
+
         # call the parent class to load the managers for observations and actions.
         super().load_managers()
 
@@ -131,10 +134,10 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
 
         # setup the action and observation spaces for Gym
         self._configure_gym_env_spaces()
-
+        # TODO(rcathome): Is there a reason this happens at the end of the load_managers function?
         # perform events at the start of the simulation
-        if "startup" in self.event_manager.available_modes:
-            self.event_manager.apply(mode="startup")
+        # if "startup" in self.event_manager.available_modes:
+        #     self.event_manager.apply(mode="startup")
 
     def setup_manager_visualizers(self):
         """Creates live visualizers for manager terms."""
