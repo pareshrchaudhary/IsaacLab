@@ -1,4 +1,4 @@
-# Copyright (c) 2022-2025, The Isaac Lab Project Developers.
+# Copyright (c) 2022-2025, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
 # All rights reserved.
 #
 # SPDX-License-Identifier: BSD-3-Clause
@@ -209,6 +209,18 @@ class ManagerBasedEnv:
     def device(self):
         """The device on which the environment is running."""
         return self.sim.device
+
+    @property
+    def get_IO_descriptors(self):
+        """Get the IO descriptors for the environment.
+
+        Returns:
+            A dictionary with keys as the group names and values as the IO descriptors.
+        """
+        return {
+            "observations": self.observation_manager.get_IO_descriptors,
+            "actions": self.action_manager.get_IO_descriptors,
+        }
 
     """
     Operations - Setup.
