@@ -356,6 +356,7 @@ class EventManager(ManagerBase):
         # # check if the term is storing data
         for term_name, term_cfg in cfg_items:
             if term_cfg.store_data:
+                # if the term is storing data, we need to call the function to get the data
                 self._event_data[term_name] = term_cfg.func(self._env, None, **term_cfg.params).to(self.device)
                 assert self._event_data[term_name].shape[0] == self.num_envs, (
                     f"Event data for term '{term_name}' has shape {self._event_data[term_name]} but"
@@ -363,6 +364,9 @@ class EventManager(ManagerBase):
                 )
                 if term_cfg.mode == "interval" and term_cfg.zero_data:
                     self._event_data[term_name].zero_()
+            elif term_cfg.mode == "startup":
+                # if the term is in startup mode, we need to call the function to prepare the data
+                term_cfg.func(self._env, None, **term_cfg.params)
 
     def _prepare_terms(self):
         # buffer to store the time left for "interval" mode

@@ -87,7 +87,7 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         # -- set the framerate of the gym video recorder wrapper so that the playback speed of the produced video matches the simulation
         self.metadata["render_fps"] = 1 / self.step_dt
 
-        self.max_episode_length_offset = int(self.cfg.max_episode_lengh_offset_s / self.step_dt)
+        self.max_episode_length_offset = int(self.cfg.max_episode_length_offset_s / self.step_dt)
 
         print("[INFO]: Completed setting up the environment...")
 
@@ -400,6 +400,8 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         self.extras["log"].update(info)
 
         # reset the episode length buffer
-        self.episode_length_buf[env_ids] = torch.randint_like(
-            self.episode_length_buf[env_ids], high=self.max_episode_length_offset
+        self.episode_length_buf[env_ids] = (
+            torch.randint_like(self.episode_length_buf[env_ids], high=self.max_episode_length_offset)
+            if self.max_episode_length_offset > 0
+            else torch.zeros_like(self.episode_length_buf[env_ids])
         )

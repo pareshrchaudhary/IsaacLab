@@ -54,6 +54,13 @@ class ManagerBasedRLEnvCfg(ManagerBasedEnvCfg):
     then the episode length in steps is 100.
     """
 
+    max_episode_length_offset_s: float = 0.0
+    """Offset to the episode length in seconds.
+
+    This is used to add a small offset to the episode length to avoid the case where the episode length is exactly
+    equal to the episode length in steps.
+    """
+
     # environment settings
     rewards: object = MISSING
     """Reward settings.
