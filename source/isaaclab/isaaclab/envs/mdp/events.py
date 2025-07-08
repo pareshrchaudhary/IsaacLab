@@ -1055,7 +1055,12 @@ def reset_joints_by_scale(
     joint_vel = joint_vel.clamp_(-joint_vel_limits, joint_vel_limits)
 
     # set into the physics simulation
-    asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids, joint_ids=asset_cfg.joint_ids)
+    asset.write_joint_state_to_sim(
+        joint_pos.view(len(env_ids), -1),
+        joint_vel.view(len(env_ids), -1),
+        env_ids=env_ids,
+        joint_ids=asset_cfg.joint_ids
+    )
 
 
 def reset_joints_by_offset(
@@ -1089,7 +1094,12 @@ def reset_joints_by_offset(
     joint_vel = joint_vel.clamp_(-joint_vel_limits, joint_vel_limits)
 
     # set into the physics simulation
-    asset.write_joint_state_to_sim(joint_pos, joint_vel, env_ids=env_ids, joint_ids=asset_cfg.joint_ids)
+    asset.write_joint_state_to_sim(
+        joint_pos.view(len(env_ids), -1),
+        joint_vel.view(len(env_ids), -1),
+        env_ids=env_ids,
+        joint_ids=asset_cfg.joint_ids
+    )
 
 
 def reset_nodal_state_uniform(
