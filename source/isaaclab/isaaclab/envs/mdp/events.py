@@ -1059,7 +1059,7 @@ def reset_joints_by_scale(
         joint_pos.view(len(env_ids), -1),
         joint_vel.view(len(env_ids), -1),
         env_ids=env_ids,
-        joint_ids=asset_cfg.joint_ids
+        joint_ids=asset_cfg.joint_ids,
     )
 
 
@@ -1098,7 +1098,7 @@ def reset_joints_by_offset(
         joint_pos.view(len(env_ids), -1),
         joint_vel.view(len(env_ids), -1),
         env_ids=env_ids,
-        joint_ids=asset_cfg.joint_ids
+        joint_ids=asset_cfg.joint_ids,
     )
 
 
