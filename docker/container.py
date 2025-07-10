@@ -9,7 +9,16 @@ import argparse
 import shutil
 from pathlib import Path
 
-from utils import ContainerInterface, x11_utils
+from utils import ContainerInterface, ApptainerInterface, x11_utils
+
+def detect_container_runtime():
+    """Detect available container runtime."""
+    if shutil.which("docker"):
+        return "docker"
+    elif shutil.which("apptainer") or shutil.which("singularity"):
+        return "apptainer"
+    else:
+        raise RuntimeError("Neither Docker nor Apptainer/Singularity found!")
 
 
 def parse_cli_args() -> argparse.Namespace:
@@ -95,26 +104,44 @@ def parse_cli_args() -> argparse.Namespace:
 def main(args: argparse.Namespace):
     """Main function for the Docker utility."""
     # check if docker is installed
-    if not shutil.which("docker"):
-        raise RuntimeError(
+    runtime = detect_container_runtime()
+    
+    if runtime == "docker":
+        if not shutil.which("docker"):
+            raise RuntimeError(
             "Docker is not installed! Please check the 'Docker Guide' for instruction: "
             "https://isaac-sim.github.io/IsaacLab/source/deployment/docker.html"
         )
+        
+        # creating container interface
+        ci = ContainerInterface(
+            context_dir=Path(__file__).resolve().parent,
+            profile=args.profile,
+            yamls=args.files,
+            envs=args.env_files,
+        )
+        
+    elif runtime == "apptainer":
+        ci = ApptainerInterface(
+            context_dir=Path(__file__).resolve().parent,
+            profile=args.profile,
+            envs=args.env_files,
+        )
 
-    # creating container interface
-    ci = ContainerInterface(
-        context_dir=Path(__file__).resolve().parent, profile=args.profile, yamls=args.files, envs=args.env_files
-    )
-
-    print(f"[INFO] Using container profile: {ci.profile}")
+    print(f"[INFO] Using {runtime} with profile: {ci.profile}")
+    
     if args.command == "start":
         # check if x11 forwarding is enabled
         x11_outputs = x11_utils.x11_check(ci.statefile)
         # if x11 forwarding is enabled, add the x11 yaml and environment variables
         if x11_outputs is not None:
-            (x11_yaml, x11_envar) = x11_outputs
-            ci.add_yamls += x11_yaml
-            ci.environ.update(x11_envar)
+            if runtime == "docker":
+                (x11_yaml, x11_envar) = x11_outputs
+                ci.add_yamls += x11_yaml
+                ci.environ.update(x11_envar)
+            else:  # apptainer
+                (_, x11_envar) = x11_outputs
+                ci.environ.update(x11_envar)
         # start the container
         ci.start()
     elif args.command == "enter":
@@ -123,7 +150,11 @@ def main(args: argparse.Namespace):
         # enter the container
         ci.enter()
     elif args.command == "config":
-        ci.config(args.output_yaml)
+        if runtime == "docker":
+            ci.config(args.output_yaml)
+        else:
+            print("[WARNING] Config command not supported with Apptainer.")
+            
     elif args.command == "copy":
         ci.copy()
     elif args.command == "stop":
