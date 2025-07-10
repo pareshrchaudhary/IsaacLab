@@ -104,13 +104,13 @@ def x11_check(statefile: StateFile) -> tuple[list[str], dict[str, str]] | None:
         statefile.set_variable("X11_FORWARDING_ENABLED", is_x11_forwarding_enabled)
     else:
         # print the current configuration
-        print(f"[INFO] X11 Forwarding is configured as '{is_x11_forwarding_enabled}' in '.container.cfg'.")
+        print(f"[INFO] X11 Forwarding is configured as '{is_x11_forwarding_enabled}' in 'docker_volumes/config/.container.cfg'.")
 
         # print help message to enable/disable X11 forwarding
         if is_x11_forwarding_enabled == "1":
-            print("\tTo disable X11 forwarding, set 'X11_FORWARDING_ENABLED=0' in '.container.cfg'.")
+            print("\tTo disable X11 forwarding, set 'X11_FORWARDING_ENABLED=0' in 'docker_volumes/config/.container.cfg'.")
         else:
-            print("\tTo enable X11 forwarding, set 'X11_FORWARDING_ENABLED=1' in '.container.cfg'.")
+            print("\tTo enable X11 forwarding, set 'X11_FORWARDING_ENABLED=1' in 'docker_volumes/config/.container.cfg'.")
 
     if is_x11_forwarding_enabled == "1":
         x11_envars = configure_x11(statefile)
@@ -207,7 +207,7 @@ def x11_refresh(statefile: StateFile):
     # print the current configuration
     if is_x11_forwarding_enabled is not None:
         status = "enabled" if is_x11_forwarding_enabled == "1" else "disabled"
-        print(f"[INFO] X11 Forwarding is {status} from the settings in '.container.cfg'")
+        print(f"[INFO] X11 Forwarding is {status} from the settings in 'docker_volumes/config/.container.cfg'")
 
     # if the file exists, delete it and create a new one
     if tmp_xauth_value is not None and Path(tmp_xauth_value).exists():

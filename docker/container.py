@@ -72,6 +72,19 @@ def parse_cli_args() -> argparse.Namespace:
         "copy", help="Copy build and logs artifacts from the container to the host machine.", parents=[parent_parser]
     )
     subparsers.add_parser("stop", help="Stop the docker container and remove it.", parents=[parent_parser])
+    subparsers.add_parser(
+        "hard_stop", help="Stop the docker container and remove all associated volumes.", parents=[parent_parser]
+    )
+    subparsers.add_parser(
+        "cleanup",
+        help="Stop the container, and remove networks, volumes, and images.",
+        parents=[parent_parser],
+    )
+    subparsers.add_parser(
+        "deep_cleanup",
+        help="Perform a deep cleanup of all resources including docker_volumes directory (preserving assets).",
+        parents=[parent_parser],
+    )
 
     # parse the arguments to determine the command
     args = parser.parse_args()
@@ -116,6 +129,21 @@ def main(args: argparse.Namespace):
     elif args.command == "stop":
         # stop the container
         ci.stop()
+        # cleanup the x11 forwarding
+        x11_utils.x11_cleanup(ci.statefile)
+    elif args.command == "hard_stop":
+        # hard stop the container
+        ci.hard_stop()
+        # cleanup the x11 forwarding
+        x11_utils.x11_cleanup(ci.statefile)
+    elif args.command == "cleanup":
+        # cleanup the container
+        ci.cleanup()
+        # cleanup the x11 forwarding
+        x11_utils.x11_cleanup(ci.statefile)
+    elif args.command == "deep_cleanup":
+        # deep cleanup the container
+        ci.deep_cleanup()
         # cleanup the x11 forwarding
         x11_utils.x11_cleanup(ci.statefile)
     else:

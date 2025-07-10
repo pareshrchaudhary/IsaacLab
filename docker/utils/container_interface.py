@@ -36,7 +36,7 @@ class ContainerInterface:
                 they are provided.
             statefile: An instance of the :class:`Statefile` class to manage state variables. Defaults to None, in
                 which case a new configuration object is created by reading the configuration file at the path
-                ``context_dir/.container.cfg``.
+                ``context_dir.parent.parent/docker_volumes/config/.container.cfg``.
         """
         # set the context directory
         self.context_dir = context_dir
@@ -44,7 +44,7 @@ class ContainerInterface:
         # create a state-file if not provided
         # the state file is a manager of run-time state variables that are saved to a file
         if statefile is None:
-            self.statefile = StateFile(path=self.context_dir / ".container.cfg")
+            self.statefile = StateFile(path=self.context_dir.parent.parent / "docker_volumes" / "config" / ".container.cfg")
         else:
             self.statefile = statefile
 
@@ -59,7 +59,8 @@ class ContainerInterface:
         self.image_name = f"isaac-lab-{self.profile}:latest"
 
         # keep the environment variables from the current environment
-        self.environ = os.environ
+        self.environ = os.environ.copy()
+        self.environ["DOCKER_BUILDKIT"] = "1"
 
         # resolve the image extension through the passed yamls and envs
         self._resolve_image_extension(yamls, envs)
@@ -93,6 +94,28 @@ class ContainerInterface:
         result = subprocess.run(["docker", "image", "inspect", self.image_name], capture_output=True, text=True)
         return result.returncode == 0
 
+    def check_isaac_assets(self):
+        """Check if Isaac Sim asset packs exist in the required location.
+        
+        Verifies that Isaac Sim assets are present in docker_volumes/assets/Assets/Isaac/4.5.
+        If not found, provides instructions for manual download.
+        """
+        # Define the target directory
+        assets_dir = self.context_dir.parent.parent / "docker_volumes" / "assets" / "Assets" / "Isaac" / "4.5"
+        
+        # Check if assets already exist (look for both NVIDIA and Isaac folders)
+        if (assets_dir.exists() and 
+            (assets_dir / "NVIDIA").exists() and 
+            (assets_dir / "Isaac").exists()):
+            print(f"[INFO] Isaac Sim assets found at {assets_dir}")
+            return
+            
+        print(f"[INFO] Isaac Sim assets not found at {assets_dir}")
+        print("[INFO] Download the three Isaac Sim asset packs from:")
+        print("[INFO] https://docs.isaacsim.omniverse.nvidia.com/4.5.0/installation/install_faq.html#isaac-sim-setup-assets-content-pack")
+        print(f"[INFO] Extract to: {assets_dir}")
+        print("[INFO] Cloud assets will be used by default if local assets are unavailable.")
+
     def start(self):
         """Build and start the Docker container using the Docker compose command."""
         print(
@@ -100,22 +123,67 @@ class ContainerInterface:
             " background...\n"
         )
 
-        # build the image for the base profile
-        subprocess.run(
-            [
-                "docker",
-                "compose",
-                "--file",
-                "docker-compose.yaml",
-                "--env-file",
-                ".env.base",
-                "build",
-                "isaac-lab-base",
-            ],
-            check=False,
-            cwd=self.context_dir,
-            env=self.environ,
-        )
+        # Create Isaac Lab directories
+        host_dirs = [
+            self.context_dir.parent / "logs",
+            self.context_dir.parent / "outputs", 
+            self.context_dir.parent / "data_storage"
+        ]
+        
+        for host_dir in host_dirs:
+            if not host_dir.exists():
+                print(f"[INFO] Creating directory: {host_dir}")
+                host_dir.mkdir(parents=True, exist_ok=True)
+                
+        # Create docker_volumes directories for bind mounts
+        docker_volumes_root = self.context_dir.parent.parent / "docker_volumes"
+        docker_volume_dirs = [
+            # Kit cache and logs
+            docker_volumes_root / "kit" / "cache",
+            docker_volumes_root / "kit" / "logs" / "Kit" / "Isaac-Sim",
+            # Cache directories
+            docker_volumes_root / "cache" / "ov",
+            docker_volumes_root / "cache" / "pip",
+            docker_volumes_root / "cache" / "nvidia" / "GLCache",
+            docker_volumes_root / "cache" / "compute",
+            # Logs and data
+            docker_volumes_root / "logs" / "omniverse",
+            docker_volumes_root / "data" / "omniverse",
+            docker_volumes_root / "docs",
+            # Shell history
+            docker_volumes_root / "shell_history",
+        ]
+        
+        for dir_path in docker_volume_dirs:
+            if not dir_path.exists():
+                print(f"[INFO] Creating docker_volumes directory: {dir_path}")
+                dir_path.mkdir(parents=True, exist_ok=True)
+                
+        # Create bash_history file if it doesn't exist
+        bash_history_file = docker_volumes_root / "shell_history" / ".bash_history"
+        if not bash_history_file.exists():
+            bash_history_file.touch()
+
+        # Check Isaac Sim assets if they don't exist
+        self.check_isaac_assets()
+
+        # build the image for the base profile if not running base (up will build base already if profile is base)
+        if self.profile != "base":
+            subprocess.run(
+                [
+                    "docker",
+                    "compose",
+                    "-f",
+                    "docker-compose.yaml",
+                    "--env-file",
+                    ".env.base",
+                    "build",
+                    "isaac-lab-base",
+                ],
+                check=False,
+                cwd=self.context_dir,
+                env=self.environ,
+            )
 
         # build the image for the profile
         subprocess.run(
@@ -137,12 +205,22 @@ class ContainerInterface:
         """
         if self.is_container_running():
             print(f"[INFO] Entering the existing '{self.container_name}' container in a bash session...\n")
+            
+            # Check if X11 forwarding is enabled in the configuration
+            self.statefile.namespace = "X11"
+            is_x11_enabled = self.statefile.get_variable("X11_FORWARDING_ENABLED")
+            
+            # Only forward DISPLAY if X11 is explicitly enabled
+            display_args = []
+            if is_x11_enabled == "1" and "DISPLAY" in os.environ:
+                display_args = ["-e", f"DISPLAY={os.environ['DISPLAY']}"]
+            
             subprocess.run([
                 "docker",
                 "exec",
                 "--interactive",
                 "--tty",
-                *(["-e", f"DISPLAY={os.environ['DISPLAY']}"] if "DISPLAY" in os.environ else []),
+                *display_args,
                 f"{self.container_name}",
                 "bash",
             ])
@@ -158,6 +236,23 @@ class ContainerInterface:
         if self.is_container_running():
             print(f"[INFO] Stopping the launched docker container '{self.container_name}'...\n")
             subprocess.run(
+                ["docker", "compose"] + self.add_yamls + self.add_profiles + self.add_env_files + ["down"],
+                check=False,
+                cwd=self.context_dir,
+                env=self.environ,
+            )
+        else:
+            raise RuntimeError(f"Can't stop container '{self.container_name}' as it is not running.")
+        
+    def hard_stop(self):
+        """Remove all the containers and files associated with the container.
+
+        Raises:
+            RuntimeError: If the container is not running.
+        """
+        if self.is_container_running():
+            print(f"[INFO] Hard stopping the launched docker container '{self.container_name}'...\n")
+            subprocess.run(
                 ["docker", "compose"] + self.add_yamls + self.add_profiles + self.add_env_files + ["down", "--volumes"],
                 check=False,
                 cwd=self.context_dir,
@@ -165,6 +260,32 @@ class ContainerInterface:
             )
         else:
             raise RuntimeError(f"Can't stop container '{self.container_name}' as it is not running.")
+
+    def cleanup(self):
+        """Remove all containers, networks, volumes, and images created by `up`."""
+        print(f"[INFO] Cleaning up docker environment for '{self.container_name}'...\n")
+        
+        # First, bring down the containers and remove volumes
+        subprocess.run(
+            ["docker", "compose"]
+            + self.add_yamls
+            + self.add_profiles
+            + self.add_env_files
+            + ["down", "--volumes", "--remove-orphans"],
+            check=False,
+            cwd=self.context_dir,
+            env=self.environ,
+        )
+        
+        # Then, remove the specific docker image if it exists
+        if self.does_image_exist():
+            print(f"[INFO] Removing docker image '{self.image_name}'...\n")
+            subprocess.run(
+                ["docker", "rmi", self.image_name],
+                check=False,
+                cwd=self.context_dir,
+                env=self.environ,
+            )
 
     def copy(self, output_dir: Path | None = None):
         """Copy artifacts from the running container to the host machine.
@@ -241,9 +362,95 @@ class ContainerInterface:
             env=self.environ,
         )
 
-    """
-    Helper functions.
-    """
+    def deep_cleanup(self):
+        """Perform a deep cleanup of all resources created by the container.
+        
+        This includes:
+        - All containers, networks, and volumes (from regular cleanup)
+        - Base NVIDIA Isaac Sim image
+        - All Isaac Lab related images and volumes
+        - Entire docker_volumes directory (except assets)
+        - Project-specific data
+        - Dangling volumes and images
+        
+        Warning:
+            This is a destructive operation that will remove ALL data associated with the Isaac Lab container.
+            Use with caution.
+        """
+        print(f"[INFO] Starting deep cleanup for '{self.container_name}'...\n")
+        
+        # First perform regular cleanup
+        self.cleanup()
+        
+        # Remove the base NVIDIA Isaac Sim image if it exists
+        base_image = f"{self.dot_vars.get('ISAACSIM_BASE_IMAGE', 'nvcr.io/nvidia/isaac-sim')}:{self.dot_vars.get('ISAACSIM_VERSION', '4.5.0')}"
+        print(f"[INFO] Removing base image '{base_image}'...\n")
+        subprocess.run(
+            ["docker", "rmi", "-f", base_image],
+            check=False,
+            cwd=self.context_dir,
+            env=self.environ,
+        )
+        
+        # Create a temporary cleanup container to remove root-owned files from docker_volumes directory (except assets)
+        docker_volumes_dir = self.context_dir.parent.parent / "docker_volumes"
+        print(f"[INFO] Creating temporary container to clean up docker_volumes directory (preserving assets): {docker_volumes_dir}...\n")
+        cleanup_container = "isaac-lab-cleanup"
+        subprocess.run(
+            ["docker", "run", "--rm", "-d", "--name", cleanup_container,
+             "-v", f"{docker_volumes_dir}:/cleanup/docker_volumes",
+             "-v", f"{self.context_dir.parent}/logs:/cleanup/logs",
+             "-v", f"{self.context_dir.parent}/outputs:/cleanup/outputs",
+             "-v", f"{self.context_dir.parent}/data_storage:/cleanup/data_storage",
+             "-v", f"{self.context_dir.parent}/docs/_build:/cleanup/docs_build",
+             "alpine:latest", "sh", "-c", 
+             "find /cleanup/docker_volumes -mindepth 1 -maxdepth 1 ! -name 'assets' -exec rm -rf {} + && "
+             "rm -rf /cleanup/logs/* /cleanup/outputs/* /cleanup/data_storage/* /cleanup/docs_build/* && sleep 1"],
+            check=False,
+            cwd=self.context_dir,
+            env=self.environ,
+        )
+        
+        # Remove all dangling volumes (not associated with any container)
+        print("[INFO] Removing dangling volumes...\n")
+        subprocess.run(
+            ["docker", "volume", "prune", "-f"],
+            check=False,
+            cwd=self.context_dir,
+            env=self.environ,
+        )
+        
+        # Remove all Isaac Lab related images
+        print("[INFO] Removing all Isaac Lab related docker images...\n")
+        # Get all images related to isaac-lab
+        images = subprocess.run(
+            ["docker", "images", "-a", "-q", "--filter", "reference=isaac-lab-*"],
+            capture_output=True,
+            text=True,
+            check=False,
+            cwd=self.context_dir,
+            env=self.environ,
+        ).stdout.strip().split('\n')
+        if images and images[0]:  # Only proceed if we found images
+            print("\t- Removing Isaac Lab images")
+            subprocess.run(
+                ["docker", "rmi", "-f"] + images,
+                check=False,
+                cwd=self.context_dir,
+                env=self.environ,
+            )
+        
+        # Remove dangling images
+        print("[INFO] Removing dangling images...\n")
+        subprocess.run(
+            ["docker", "image", "prune", "-f"],
+            check=False,
+            cwd=self.context_dir,
+            env=self.environ,
+        )
+        
+        print("[INFO] Deep cleanup completed.\n")
+
 
     def _resolve_image_extension(self, yamls: list[str] | None = None, envs: list[str] | None = None):
         """

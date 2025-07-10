@@ -147,5 +147,6 @@ class StateFile:
 
     def save(self):
         """Save the configuration file to disk."""
+        self.path.parent.mkdir(parents=True, exist_ok=True)
         with open(self.path, "w+") as f:
             self.loaded_cfg.write(f)

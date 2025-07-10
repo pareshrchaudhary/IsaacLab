@@ -2,38 +2,79 @@
 # be re-used between services to an
 # extension field
 # https://docs.docker.com/compose/compose-file/compose-file-v3/#extension-fields
+
+# VOLUME STRATEGY:
+# Isaac Lab uses bind mounts to store all cache, logs, and data in a local 'docker_volumes' directory.
+# For detailed information about the volume strategy, see README.md in this directory.
+
 x-default-isaac-lab-volumes: &default-isaac-lab-volumes
-  # These volumes follow from this page
+  # ISAAC SIM CACHE AND DATA VOLUMES:
+  # These volumes follow NVIDIA's recommendations for persistent storage
   # https://docs.omniverse.nvidia.com/app_isaacsim/app_isaacsim/install_faq.html#save-isaac-sim-configs-on-local-disk
-  - type: volume
-    source: isaac-cache-kit
+  
+  # Isaac Sim kit cache (shader cache, configs, etc.)
+  # Host: ../../docker_volumes/kit/cache → Container: /isaac-sim/kit/cache
+  - type: bind
+    source: ../../docker_volumes/kit/cache
     target: ${DOCKER_ISAACSIM_ROOT_PATH}/kit/cache
-  - type: volume
-    source: isaac-cache-ov
-    target: ${DOCKER_USER_HOME}/.cache/ov
-  - type: volume
-    source: isaac-cache-pip
-    target: ${DOCKER_USER_HOME}/.cache/pip
-  - type: volume
-    source: isaac-cache-gl
-    target: ${DOCKER_USER_HOME}/.cache/nvidia/GLCache
-  - type: volume
-    source: isaac-cache-compute
-    target: ${DOCKER_USER_HOME}/.nv/ComputeCache
-  - type: volume
-    source: isaac-logs
-    target: ${DOCKER_USER_HOME}/.nvidia-omniverse/logs
-  - type: volume
-    source: isaac-carb-logs
+  
+  # OMNIVERSE AND NVIDIA CACHE VOLUMES:
+  # These store Omniverse client cache and NVIDIA graphics/compute cache
+  
+  # Omniverse client cache (materials, assets, etc.)
+  # Host: ../../docker_volumes/cache/ov → Container: /root/cache/ov
+  - type: bind
+    source: ../../docker_volumes/cache/ov
+    target: ${DOCKER_USER_HOME}/cache/ov
+  
+  # Python pip package cache (speeds up package installs)
+  # Host: ../../docker_volumes/cache/pip → Container: /root/cache/pip
+  - type: bind
+    source: ../../docker_volumes/cache/pip
+    target: ${DOCKER_USER_HOME}/cache/pip
+  
+  # NVIDIA OpenGL shader cache (improves rendering performance)
+  # Host: ../../docker_volumes/cache/nvidia/GLCache → Container: /root/cache/nvidia/GLCache
+  - type: bind
+    source: ../../docker_volumes/cache/nvidia/GLCache
+    target: ${DOCKER_USER_HOME}/cache/nvidia/GLCache
+  
+  # NVIDIA CUDA compute cache (speeds up GPU computations)
+  # Host: ../../docker_volumes/cache/compute → Container: /root/cache/compute
+  - type: bind
+    source: ../../docker_volumes/cache/compute
+    target: ${DOCKER_USER_HOME}/cache/compute
+  
+  # LOGGING AND DATA VOLUMES:
+  
+  # Omniverse application logs
+  # Host: ../../docker_volumes/logs/omniverse → Container: /root/logs/omniverse
+  - type: bind
+    source: ../../docker_volumes/logs/omniverse
+    target: ${DOCKER_USER_HOME}/logs/omniverse
+  
+  # Isaac Sim kit application logs (detailed debugging info)
+  # Host: ../../docker_volumes/kit/logs/Kit/Isaac-Sim → Container: /isaac-sim/kit/logs/Kit/Isaac-Sim
+  - type: bind
+    source: ../../docker_volumes/kit/logs/Kit/Isaac-Sim
     target: ${DOCKER_ISAACSIM_ROOT_PATH}/kit/logs/Kit/Isaac-Sim
-  - type: volume
-    source: isaac-data
-    target: ${DOCKER_USER_HOME}/.local/share/ov/data
-  - type: volume
-    source: isaac-docs
-    target: ${DOCKER_USER_HOME}/Documents
-    # This overlay allows changes on the local files to
-    # be reflected within the container immediately
+  
+  # Omniverse user data (scenes, materials, custom assets)
+  # Host: ../../docker_volumes/data/omniverse → Container: /root/data/omniverse
+  - type: bind
+    source: ../../docker_volumes/data/omniverse
+    target: ${DOCKER_USER_HOME}/data/omniverse
+  
+  # User documentation and configuration files
+  # Host: ../../docker_volumes/docs → Container: /root/docs
+  - type: bind
+    source: ../../docker_volumes/docs
+    target: ${DOCKER_USER_HOME}/docs
+  
+  # ISAAC LAB SOURCE CODE VOLUMES:
+  # These bind mounts allow live editing of Isaac Lab source code
+  # Changes made on the host are immediately reflected in the container
+  
   - type: bind
     source: ../source
     target: ${DOCKER_ISAACLAB_PATH}/source
@@ -46,24 +87,45 @@ x-default-isaac-lab-volumes: &default-isaac-lab-volumes
   - type: bind
     source: ../tools
     target: ${DOCKER_ISAACLAB_PATH}/tools
-    # The effect of these volumes is twofold:
-    # 1. Prevent root-owned files from flooding the _build and logs dir
-    #    on the host machine
-    # 2. Preserve the artifacts in persistent volumes for later copying
-    #    to the host machine
-  - type: volume
-    source: isaac-lab-docs
-    target: ${DOCKER_ISAACLAB_PATH}/docs/_build
-  - type: volume
-    source: isaac-lab-logs
+  - type: bind
+    source: ../../libraries
+    target: ${DOCKER_ISAACLAB_PATH}/libraries
+  
+  # ISAAC LAB OUTPUT AND BUILD VOLUMES:
+  
+  # Training logs, experiment outputs, saved models
+  - type: bind
+    source: ../logs
     target: ${DOCKER_ISAACLAB_PATH}/logs
-  - type: volume
-    source: isaac-lab-data
+  - type: bind
+    source: ../outputs
+    target: ${DOCKER_ISAACLAB_PATH}/outputs
+  - type: bind
+    source: ../data_storage
     target: ${DOCKER_ISAACLAB_PATH}/data_storage
+  
+  # Built documentation artifacts (prevents root-owned files on host)
+  # Host: ../../docker_volumes/docs_build → Container: /workspace/IsaacLab/docs/_build
+  # - type: bind
+  #   source: ../../docker_volumes/docs_build
+  #   target: ${DOCKER_ISAACLAB_PATH}/docs/_build
+  
+  # SHELL HISTORY:
+  # Persistent bash history for convenience during development
+  - type: bind
+    source: ../../docker_volumes/shell_history/.bash_history
+    target: ${DOCKER_USER_HOME}/.bash_history
+
+  # Bind mount for local Isaac Sim assets
+  - type: bind
+    source: ../../docker_volumes/assets/Assets/Isaac/4.5
+    target: /isaacsim_assets/Assets/Isaac/4.5
 
 x-default-isaac-lab-environment: &default-isaac-lab-environment
   - ISAACSIM_PATH=${DOCKER_ISAACLAB_PATH}/_isaac_sim
   - OMNI_KIT_ALLOW_ROOT=1
+  - ACCEPT_EULA=Y
+  - PRIVACY_CONSENT=Y
 
 x-default-isaac-lab-deploy: &default-isaac-lab-deploy
   resources:
@@ -79,8 +141,8 @@ services:
     profiles: [ "base" ]
     env_file: .env.base
     build:
-      context: ../
-      dockerfile: docker/Dockerfile.base
+      context: ../../
+      dockerfile: IsaacLab/docker/Dockerfile.base
       args:
         - ISAACSIM_BASE_IMAGE_ARG=${ISAACSIM_BASE_IMAGE}
         - ISAACSIM_VERSION_ARG=${ISAACSIM_VERSION}
@@ -89,7 +151,13 @@ services:
         - DOCKER_USER_HOME_ARG=${DOCKER_USER_HOME}
     image: isaac-lab-base
     container_name: isaac-lab-base
-    environment: *default-isaac-lab-environment
+    environment:
+      - ISAACSIM_PATH=${DOCKER_ISAACLAB_PATH}/_isaac_sim
+      - OMNI_KIT_ALLOW_ROOT=1
+      - ACCEPT_EULA=Y
+      - PRIVACY_CONSENT=Y
+      # Use local assets if available
+      - ISAACSIM_ASSET_ROOT=/isaacsim_assets/Assets/Isaac/4.5
     volumes: *default-isaac-lab-volumes
     network_mode: host
     deploy: *default-isaac-lab-deploy
@@ -106,8 +174,8 @@ services:
       - .env.base
       - .env.ros2
     build:
-      context: ../
-      dockerfile: docker/Dockerfile.ros2
+      context: ../../
+      dockerfile: IsaacLab/docker/Dockerfile.ros2
       args:
         # ROS2_APT_PACKAGE will default to NONE. This is to
         # avoid a warning message when building only the base profile
@@ -123,19 +191,3 @@ services:
     entrypoint: bash
     stdin_open: true
     tty: true
-
-volumes:
-  # isaac-sim
-  isaac-cache-kit:
-  isaac-cache-ov:
-  isaac-cache-pip:
-  isaac-cache-gl:
-  isaac-cache-compute:
-  isaac-logs:
-  isaac-carb-logs:
-  isaac-data:
-  isaac-docs:
-  # isaac-lab
-  isaac-lab-docs:
-  isaac-lab-logs:
-  isaac-lab-data:

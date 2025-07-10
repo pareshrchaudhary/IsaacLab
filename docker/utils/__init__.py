@@ -4,5 +4,6 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 from .container_interface import ContainerInterface
+from .x11_utils import x11_check, x11_refresh, x11_cleanup
 
-__all__ = ["ContainerInterface"]
+__all__ = ["ContainerInterface", "x11_check", "x11_refresh", "x11_cleanup"]
