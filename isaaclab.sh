@@ -276,6 +276,11 @@ while [[ $# -gt 0 ]]; do
             # install the python packages in IsaacLab/source directory
             echo "[INFO] Installing extensions inside the Isaac Lab repository..."
             python_exe=$(extract_python_exe)
+            
+            # Ensure NumPy compatibility with Isaac Sim 4.5.0
+            echo "[INFO] Ensuring NumPy compatibility with Isaac Sim 4.5.0..."
+            ${python_exe} -m pip install "numpy==1.26.4"
+            
             # recursively look into directories and install them
             # this does not check dependencies between extensions
             export -f extract_python_exe

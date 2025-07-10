@@ -11,7 +11,7 @@ sphinx-tabs # backwards compatibility for building docs on v1.0.0
 sphinx-multiversion==0.2.4
 
 # basic python
-numpy
+numpy==1.26.4 # Pin to <2.0 for Isaac Sim 4.5.0 compatibility
 matplotlib
 warp-lang
 # learning
