@@ -21,17 +21,17 @@ from typing import Literal
 import carb
 import omni.client
 
-NUCLEUS_ASSET_ROOT_DIR = carb.settings.get_settings().get("/persistent/isaac/asset_root/cloud")
-"""Path to the root directory on the Nucleus Server."""
+NUCLEUS_ASSET_ROOT_DIR = carb.settings.get_settings().get("/persistent/isaac/asset_root/default")
+"""Path to the root directory on the Nucleus Server or local assets."""
 
 NVIDIA_NUCLEUS_DIR = f"{NUCLEUS_ASSET_ROOT_DIR}/NVIDIA"
-"""Path to the root directory on the NVIDIA Nucleus Server."""
+"""Path to the root directory on the NVIDIA Nucleus Server or local assets."""
 
 ISAAC_NUCLEUS_DIR = f"{NUCLEUS_ASSET_ROOT_DIR}/Isaac"
-"""Path to the ``Isaac`` directory on the NVIDIA Nucleus Server."""
+"""Path to the ``Isaac`` directory on the NVIDIA Nucleus Server or local assets."""
 
 ISAACLAB_NUCLEUS_DIR = f"{ISAAC_NUCLEUS_DIR}/IsaacLab"
-"""Path to the ``Isaac/IsaacLab`` directory on the NVIDIA Nucleus Server."""
+"""Path to the ``Isaac/IsaacLab`` directory on the NVIDIA Nucleus Server or local assets."""
 
 
 def check_file_path(path: str) -> Literal[0, 1, 2]:
@@ -97,7 +97,7 @@ def retrieve_file_path(path: str, download_dir: str | None = None, force_downloa
         # check if file already exists locally
         if not os.path.isfile(target_path) or force_download:
             # copy file to local machine
-            result = omni.client.copy(path.replace(os.sep, "/"), target_path, omni.client.CopyBehavior.OVERWRITE)
+            result = omni.client.copy(path.replace(os.sep, "/"), target_path)
             if result != omni.client.Result.OK and force_download:
                 raise RuntimeError(f"Unable to copy file: '{path}'. Is the Nucleus Server running?")
         return os.path.abspath(target_path)

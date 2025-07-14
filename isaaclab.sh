@@ -371,7 +371,13 @@ while [[ $# -gt 0 ]]; do
             isaacsim_exe=$(extract_isaacsim_exe)
             echo "[INFO] Running isaac-sim from: ${isaacsim_exe}"
             shift # past argument
-            ${isaacsim_exe} --ext-folder ${ISAACLAB_PATH}/source $@
+            # If ISAACSIM_ASSET_ROOT is set, append the asset root flag
+            if [ -n "$ISAACSIM_ASSET_ROOT" ]; then
+                echo "[INFO] Using asset root: $ISAACSIM_ASSET_ROOT"
+                ${isaacsim_exe} --ext-folder ${ISAACLAB_PATH}/source --/persistent/isaac/asset_root/default="$ISAACSIM_ASSET_ROOT" "$@"
+            else
+                ${isaacsim_exe} --ext-folder ${ISAACLAB_PATH}/source "$@"
+            fi
             # exit neatly
             break
             ;;
