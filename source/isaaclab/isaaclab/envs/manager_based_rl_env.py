@@ -207,6 +207,9 @@ class ManagerBasedRLEnv(ManagerBasedEnv, gym.Env):
         # -- reward computation
         self.reward_buf = self.reward_manager.compute(dt=self.step_dt)
 
+        # -- success metric computation
+        self.extras["success"] = self.observation_manager.compute_group("success")
+
         if len(self.recorder_manager.active_terms) > 0:
             # update observations for recording if needed
             self.obs_buf = self.observation_manager.compute()
